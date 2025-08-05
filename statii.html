@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Блокпост-13 - Статьи</title>
+    <style>
+        /* Ваши текущие стили + добавьте: */
+        #articleModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 80%;
+            max-width: 600px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group textarea {
+            width: 100%;
+            height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Ваш текущий header/nav -->
+    <main>
+        <h2>Статьи</h2>
+        <button id="createArticleBtn">Создать статью</button>
+        <div id="articlesList"></div>
+    </main>
+
+    <!-- Модальное окно -->
+    <div id="articleModal">
+        <div class="modal-content">
+            <h3>Новая статья</h3>
+            <form id="articleForm">
+                <div class="form-group">
+                    <label>Название:</label>
+                    <input type="text" id="articleTitle" required>
+                </div>
+                <div class="form-group">
+                    <label>Содержание:</label>
+                    <textarea id="articleContent" required></textarea>
+                </div>
+                <button type="submit">Опубликовать</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // DOM элементы
+        const modal = document.getElementById('articleModal');
+        const createBtn = document.getElementById('createArticleBtn');
+        const form = document.getElementById('articleForm');
+        const articlesList = document.getElementById('articlesList');
+
+        // Открыть модальное окно
+        createBtn.addEventListener('click', () => {
+            modal.style.display = 'flex';
+        });
+
+        // Обработка формы
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('articleTitle').value;
+            const content = document.getElementById('articleContent').value;
+            
+            try {
+                await createArticle(title, content);
+                modal.style.display = 'none';
+                form.reset();
+                loadArticles();
+                alert('Статья опубликована!');
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        });
+
+        // Функция создания статьи через GitHub API
+        async function createArticle(title, content) {
+            const filename = `articles/${title.toLowerCase().replace(/[^a-z0-9а-яё]/g, '-')}.html`;
+            const htmlContent = generateArticleHTML(title, content);
+            
+            const response = await fetch(
+                `https://api.github.com/repos/ВАШ_ЛОГИН/ВАШ_РЕПОЗИТОРИЙ/contents/${filename}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'token ВАШ_GITHUB_TOKEN',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `Добавлена статья: ${title}`,
+                        content: btoa(unescape(encodeURIComponent(htmlContent)))
+                    })
+                }
+            );
+            
+            if (!response.ok) throw new Error('Ошибка API GitHub');
+        }
+
+        // Генерация HTML статьи
+        function generateArticleHTML(title, content) {
+            return `<!DOCTYPE html>
+<html>
+<head>
+    <title>${title} | Блокпост-13</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <header>
+        <h1>${title}</h1>
+    </header>
+    <main>
+        ${content.replace(/\n/g, '<br>')}
+    </main>
+</body>
+</html>`;
+        }
+
+        // Загрузка списка статей
+        async function loadArticles() {
+            const response = await fetch(
+                'https://api.github.com/repos/ВАШ_ЛОГИН/ВАШ_РЕПОЗИТОРИЙ/contents/articles'
+            );
+            const files = await response.json();
+            
+            articlesList.innerHTML = files.map(file => `
+                <a href="${file.path}" class="article-link">
+                    ${file.name.replace('.html', ')}
+                </a>
+            `).join('');
+        }
+
+        // Инициализация
+        loadArticles();
+    </script>
+</body>
+</html>
