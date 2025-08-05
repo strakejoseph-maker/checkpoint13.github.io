@@ -4,7 +4,7 @@
     <title>Блокпост-13 - Статьи</title>
     <style>
         /* Ваши текущие стили + добавьте: */
-        #articleModal {
+        #uploadModal {
             display: none;
             position: fixed;
             top: 0;
@@ -21,77 +21,83 @@
             padding: 20px;
             border-radius: 5px;
             width: 80%;
-            max-width: 600px;
+            max-width: 500px;
         }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group textarea {
-            width: 100%;
-            height: 200px;
+        .article-link {
+            display: block;
+            margin: 10px 0;
+            color: #0366d6;
+            text-decoration: none;
         }
     </style>
 </head>
 <body>
-    <!-- Ваш текущий header/nav -->
+    <header>
+        <h1>Статьи</h1>
+    </header>
+    
+    <nav>
+        <!-- Ваше текущее меню -->
+        <button id="uploadBtn">Загрузить статью</button>
+    </nav>
+    
     <main>
-        <h2>Статьи</h2>
-        <button id="createArticleBtn">Создать статью</button>
-        <div id="articlesList"></div>
+        <div id="articlesList">
+            <!-- Список статей будет здесь -->
+        </div>
     </main>
 
-    <!-- Модальное окно -->
-    <div id="articleModal">
+    <!-- Модальное окно загрузки -->
+    <div id="uploadModal">
         <div class="modal-content">
-            <h3>Новая статья</h3>
-            <form id="articleForm">
-                <div class="form-group">
-                    <label>Название:</label>
-                    <input type="text" id="articleTitle" required>
-                </div>
-                <div class="form-group">
-                    <label>Содержание:</label>
-                    <textarea id="articleContent" required></textarea>
-                </div>
-                <button type="submit">Опубликовать</button>
+            <h3>Загрузить статью</h3>
+            <form id="uploadForm">
+                <input type="file" id="articleFile" accept=".txt" required>
+                <button type="submit">Загрузить</button>
             </form>
         </div>
     </div>
 
     <script>
-        // DOM элементы
-        const modal = document.getElementById('articleModal');
-        const createBtn = document.getElementById('createArticleBtn');
-        const form = document.getElementById('articleForm');
+        // Элементы DOM
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadModal = document.getElementById('uploadModal');
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('articleFile');
         const articlesList = document.getElementById('articlesList');
 
         // Открыть модальное окно
-        createBtn.addEventListener('click', () => {
-            modal.style.display = 'flex';
+        uploadBtn.addEventListener('click', () => {
+            uploadModal.style.display = 'flex';
         });
 
-        // Обработка формы
-        form.addEventListener('submit', async (e) => {
+        // Обработка загрузки файла
+        uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const title = document.getElementById('articleTitle').value;
-            const content = document.getElementById('articleContent').value;
             
-            try {
-                await createArticle(title, content);
-                modal.style.display = 'none';
-                form.reset();
-                loadArticles();
-                alert('Статья опубликована!');
-            } catch (error) {
-                alert('Ошибка: ' + error.message);
-            }
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const content = e.target.result;
+                const title = file.name.replace('.txt', '');
+                
+                try {
+                    await uploadArticle(title, content);
+                    uploadModal.style.display = 'none';
+                    loadArticles();
+                    alert('Статья загружена!');
+                } catch (error) {
+                    alert('Ошибка: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
         });
 
-        // Функция создания статьи через GitHub API
-        async function createArticle(title, content) {
-            const filename = `articles/${title.toLowerCase().replace(/[^a-z0-9а-яё]/g, '-')}.html`;
-            const htmlContent = generateArticleHTML(title, content);
-            
+        // Загрузка статьи на GitHub
+        async function uploadArticle(title, content) {
+            const filename = `articles/${title}.txt`;
             const response = await fetch(
                 `https://api.github.com/repos/ВАШ_ЛОГИН/ВАШ_РЕПОЗИТОРИЙ/contents/${filename}`,
                 {
@@ -102,31 +108,12 @@
                     },
                     body: JSON.stringify({
                         message: `Добавлена статья: ${title}`,
-                        content: btoa(unescape(encodeURIComponent(htmlContent)))
+                        content: btoa(unescape(encodeURIComponent(content)))
                     })
                 }
             );
             
-            if (!response.ok) throw new Error('Ошибка API GitHub');
-        }
-
-        // Генерация HTML статьи
-        function generateArticleHTML(title, content) {
-            return `<!DOCTYPE html>
-<html>
-<head>
-    <title>${title} | Блокпост-13</title>
-    <link rel="stylesheet" href="../styles.css">
-</head>
-<body>
-    <header>
-        <h1>${title}</h1>
-    </header>
-    <main>
-        ${content.replace(/\n/g, '<br>')}
-    </main>
-</body>
-</html>`;
+            if (!response.ok) throw new Error('Ошибка загрузки');
         }
 
         // Загрузка списка статей
@@ -136,11 +123,13 @@
             );
             const files = await response.json();
             
-            articlesList.innerHTML = files.map(file => `
-                <a href="${file.path}" class="article-link">
-                    ${file.name.replace('.html', ')}
-                </a>
-            `).join('');
+            articlesList.innerHTML = files
+                .filter(file => file.name.endsWith('.txt'))
+                .map(file => `
+                    <a href="${file.download_url}" class="article-link" target="_blank">
+                        ${file.name.replace('.txt', ')}
+                    </a>
+                `).join('');
         }
 
         // Инициализация
