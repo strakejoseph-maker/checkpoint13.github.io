@@ -1,0 +1,4 @@
+- name: Inject GH Token
+  run: |
+    sed -i "s/ВАШ_GITHUB_TOKEN/${{ secrets.GH_TOKEN }}/g" statii.html
+    sed -i "s/ВАШ_ЛОГИН\/ВАШ_РЕПОЗИТОРИЙ/${{ github.repository }}/g" statii.html
